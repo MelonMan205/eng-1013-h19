@@ -5,6 +5,11 @@
 
 
 import time
+from pymata4 import pymata4
+
+import config
+from config import *
+
 
 def read_integer(prompt, min=None, max=None):
     """
@@ -59,5 +64,31 @@ def read_float(prompt, min=None, max=None):
                 else:
                     print(f"The value you entered must be between {min} and {max}.")
         except ValueError:
-            print("The value you entered is invalid. Please enter an integer.")
+            print("The value you entered is invalid. Please enter a numerical value.")
+
+
+        
+
+def poll(pin, sonar=False):
+    original = time.time()
+    
+    while True:
+        present = time.time()
+        if (present - original)<=pollingRate:
+            continue
+        elif (present - original)>pollingRate:
+            return board.digital_read(pin) if not sonar else board.sonar_read(pin)
+
+
+def poll_us(pin, usNumber):
+    height = (sensorMountHeight*100 - poll(pin, sonar=True))/100
+    result = height > overheightLimit
+    if result:
+        state[f"us{usNumber}"]["detected"] = True 
+        state[f"us{usNumber}"]["timeOfLast"] = time.time()
+        state[f"us{usNumber}"]["triggered"] = True
+    else:
+        state[f"us{usNumber}"]["detected"] = False
+
+    return result, height, time.strftime("%x %x")
 
