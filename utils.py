@@ -70,12 +70,14 @@ def read_float(prompt, min=None, max=None):
         
 
 def poll(pin, sonar=False):
+
     original = time.time()
-    
+
+
     while True:
         present = time.time()
         if (present - original)<=pollingRate:
-            continue
+            pass
         elif (present - original)>pollingRate:
             return board.digital_read(pin) if not sonar else board.sonar_read(pin)
 
@@ -86,9 +88,9 @@ def poll_us(pin, usNumber):
     if result:
         state[f"us{usNumber}"]["detected"] = True 
         state[f"us{usNumber}"]["timeOfLast"] = time.time()
-        state[f"us{usNumber}"]["triggered"] = True
+        
     else:
         state[f"us{usNumber}"]["detected"] = False
 
-    return result, height, time.strftime("%x %x")
+    return result, height, time.strftime("%x")
 

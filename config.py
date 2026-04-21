@@ -5,8 +5,9 @@ import circuit as circuit
 board = circuit.Arduino()
 startTime = time.time()
     
+integration = False
 
-pollingRate = 1
+pollingRate = 0.1
 sensorMountHeight = 5.0
 overheightLimit = 4.0
 

@@ -37,9 +37,26 @@ sequenceTl1Trigger = False
 sequenceTl2Trigger = False  
 sequencePa1Trigger = False
 
+redTimerTl1 = yellowTimerTl1 = redTimerTl2 = yellowTimerTl2 = 0.0
+
 #function declarations
 def init():
-    userInput = read_float("Enter the over height limit in metres (for default [4.0m], leave empty): ")
+
+    while True:
+        try:
+
+            userInput = str(input("Enter the over height limit in metres (for default [4.0m], leave empty): "))
+
+            if userInput.strip(" ") == "":
+                break
+            else:
+                userInput = float(userInput)
+                break
+        except ValueError:
+            print("Either leave this empty or enter a numerical value.")
+                              
+
+    global overheightLimit
     overheightLimit = userInput if not (str(userInput).strip(" ")) == "" else 4.0
 
     board.set_pin_mode_sonar(us1Trig, us1Echo, timeout=200000)
@@ -100,7 +117,7 @@ def sequence_tl1(start):
     global sequenceTl1Trigger
     now = start
 
-    if not config.state["tl1"]["colour"] == "yellow":
+    if config.state["tl1"]["colour"] == "green":
         set_tl(1, tl1Red, tl1Yellow, tl1Green, "yellow")
 
     elif config.state["tl1"]["colour"] == "yellow" and (now-yellowTimerTl1 >= 1):
@@ -116,17 +133,19 @@ def sequence_tl2(start):
     global sequenceTl2Trigger
     now = start
     
-    if not config.state["tl2"]["colour"] == "yellow":
+    if config.state["tl2"]["colour"] == "green":
         set_tl(2, tl2Red, tl2Yellow, tl2Green, "yellow")
 
     elif config.state["tl2"]["colour"] == "yellow" and (now-yellowTimerTl2 >= 1):
         set_tl(2, tl2Red, tl2Yellow, tl2Green, "red")
     
-    elif config.state["tl2"]["colour"] == "red" and (now-redTimerTl2 >= 30):
+    elif config.state["tl2"]["colour"] == "red" and (now-redTimerTl2 >= 3):
         set_tl(2, tl2Red, tl2Yellow, tl2Green, "green")
         sequenceTl2Trigger = False
 
 def sequence_pa1(start):
+    global sequencePa1Trigger
+
     if not config.state["pa1"]["sound"]:
         board.digital_write(timerReset, 1)
         config.state["pa1"]["sound"] = True
@@ -140,8 +159,6 @@ def sequence_pa1(start):
 
 def update():
     global sequenceTl1Trigger, sequenceTl2Trigger, sequencePa1Trigger
-
-    current = time.time()
 
     us1Result = poll_us(us1Trig, 1)
     us2Result = poll_us(us2Trig, 2)
@@ -159,9 +176,11 @@ def update():
             if 16 <= (time.time() - config.state["us1"]["timeOfLast"]) <= 22.5:
                 sequenceTl2Trigger = True
                 sequencePa1Trigger = True
-            else:
-                sequenceTl2Trigger = True
-                sequenceTl1Trigger = True
+        else:
+            sequencePa1Trigger = True
+            sequenceTl2Trigger = True
+            sequenceTl1Trigger = True
+
 
         
 def main():
@@ -171,7 +190,7 @@ def main():
         init()
 
         set_tl(1, tl1Red, tl1Yellow, tl1Green, "green")
-        set_tl(2, tl1Red, tl1Yellow, tl1Green, "green")
+        set_tl(2, tl2Red, tl2Yellow, tl2Green, "green")
 
         while True:
             update()
