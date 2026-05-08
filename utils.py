@@ -77,14 +77,26 @@ def poll(pin, sonar=False):
     while True:
         present = time.time()
         if (present - original)<=pollingRate:
-            pass
+            time.sleep(0.005)
         elif (present - original)>pollingRate:
             return board.digital_read(pin) if not sonar else board.sonar_read(pin)
 
 
 def poll_us(pin, usNumber):
-    height = (sensorMountHeight*100 - poll(pin, sonar=True))/100
+
+    
+
+    #calculate rolling avg.
+    samples = []
+    for i in range(5):
+        raw = poll(pin, sonar=True)[0]
+        samples.append(raw)
+        time.sleep(0.01)
+    
+    avg_raw = sum(samples)/len(samples)
+    height = (sensorMountHeight*100 - avg_raw)/100
     result = height > overheightLimit
+
     if result:
         state[f"us{usNumber}"]["detected"] = True 
         state[f"us{usNumber}"]["timeOfLast"] = time.time()
@@ -92,5 +104,5 @@ def poll_us(pin, usNumber):
     else:
         state[f"us{usNumber}"]["detected"] = False
 
-    return result, height, time.strftime("%x")
+    return result, height, time.strftime("%X %x")
 

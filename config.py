@@ -2,14 +2,21 @@ import time
 from pymata4 import pymata4
 import circuit as circuit
 
-board = circuit.Arduino()
+ser = 2
+srclk = 3
+rclk = 4
+
+board = pymata4.Pymata4() #circuit.Arduino()
 startTime = time.time()
     
 integration = False
 
-pollingRate = 0.1
-sensorMountHeight = 5.0
+pollingRate = 0.05
+sensorMountHeight = 4.5
 overheightLimit = 4.0
+
+#no. of shift registers
+chain_number = 2
 
 state = {
     #ultrasonic sensors
@@ -27,8 +34,11 @@ state = {
     "tl5": {"colour": "green"},
     "tl6": {"colour": "green"},
     "tl7": {"colour": "green"},
+
     
     #buzzer
-    "pa1": {"sound": False}
+    "pa1": {"sound": False},
+    
+
 }
 
