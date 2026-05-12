@@ -6,3 +6,6 @@ circuit.py
 __pycache_/
 __pycache_/*
 *.pyc
+
+old_ss1.py
+test.py
