@@ -1,59 +1,89 @@
-
-#SubSytem 3 H19
-#Version: 8
-#Last Edited: 08/05
+# ss3.py
+# Subsystem 3 - over-height exit control
+# handles US5 detection and TL6 sequencing including 556 timer flash
+# Created By : H19
+# Created Date: 08/05/2026
+# version ='8.0'
 
 from pymata4 import pymata4
 import time
 from utils import *
 from config import *
 
-#qPin declarations
+# pin declarations
 tl6Green = 13
 tl6Yellow = 12
 tl6Red = 11
-timer = 9 #result from NE556N (pin 5 on NE556N), will be a 0, 1, or none
+timer = 9  # result from NE556N (pin 5 on NE556N) - outputs 0 1 or none
 trig = 2
 echo5 = 3
+
+# timing constants
+sonarTimeout = 200000
+sonarInitDelay = 0.5
+greenDuration = 5      # how long tl6 stays green before checking if vehicle cleared
+yellowDuration = 3     # yellow phase duration
+flashLoopDelay = 0.01  # poll rate inside the 556 flash loop
+loopDelay = 0.05       # main loop poll rate
 
 global sequenceTl6Trigger
 
 ss3Trigger = False
 overHeightLimit = get_over_height()
 
-def update(): 
+
+def update():
+    """
+    Polls US5 + update ss3Trigger
+    return  raw sensor result and trigger state
+
+    Parameters:
+        None
+
+    Returns:
+        tuple: (us5Result tuple from poll_us, bool ss3Trigger)
+    """
     global ss3Trigger
     us5Result = poll_us(trig, echo5, overHeightLimit)
     ss3Trigger = us5Result[0]
-    
+
     return us5Result, ss3Trigger
 
 
 def set_tl(tlNumber, redPin, greenPin, yellowPin=None, colour="reset"):
+    """
+    Sets traffic light to given color by setting its pins
+    updates state dict so other subsystems can check whats happening
     
-    #set the state of this light to the colour
+
+    Parameters:
+        tlNumber (int): which traffic light eg 6
+        redPin (int): arduino pin for red
+        greenPin (int): arduino pin for green
+        yellowPin (int or None): arduino pin for yellow if present
+        colour (str): target colour: red yellow green or reset
+
+    Returns:
+        None
+    """
+    # update state so other subsystems can read current colour
     state[f"tl{tlNumber}"]["colour"] = colour
 
-
     if colour == "red":
-
         board.digital_write(redPin, 1)
         if yellowPin is not None:
             board.digital_write(yellowPin, 0)
         board.digital_write(greenPin, 0)
 
     elif colour == "yellow":
-
         if yellowPin is None:
             print(f"Warning: TL{tlNumber} has no yellow light")
             return
-
         board.digital_write(redPin, 0)
         board.digital_write(yellowPin, 1)
         board.digital_write(greenPin, 0)
-        
-    elif colour == "green":
 
+    elif colour == "green":
         board.digital_write(redPin, 0)
         if yellowPin is not None:
             board.digital_write(yellowPin, 0)
@@ -67,73 +97,86 @@ def set_tl(tlNumber, redPin, greenPin, yellowPin=None, colour="reset"):
 
 
 def main():
+    """
+    Entry point for subsystem 3 set up pins and loop check US5
+    when overheight detected runs green sequence then checks if vehicle cleared
+    If still there then flashing control handed to the 556 timer
+    Shuts down cleanly on keyboard interrupt
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     try:
         board.set_pin_mode_digital_output(tl6Red)
         board.set_pin_mode_digital_output(tl6Yellow)
         board.set_pin_mode_digital_output(tl6Green)
-        board.set_pin_mode_sonar(trig, echo5, timeout=200000)
-        board.set_pin_mode_digital_output(timer)  # Set timer pin mode
-        time.sleep(0.5)
-        
-        #default state
-        set_tl(6, tl6Red, tl6Green, tl6Yellow, "red") #red on
+        board.set_pin_mode_sonar(trig, echo5, timeout=sonarTimeout)
+        board.set_pin_mode_digital_output(timer)
+        time.sleep(sonarInitDelay)
+
+        # default state is red and exit is closed until vehicle detected
+        set_tl(6, tl6Red, tl6Green, tl6Yellow, "red")
 
         lastState = False
         while True:
             update()
+
+            # only act on state changes not every loop tick
             if ss3Trigger != lastState:
                 if ss3Trigger:
-                    #an overheight vehicle is detected by US5
+                    # overheight vehicle detected and open the exit
                     print("Overheight vehicle detected by US5!")
-                    set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")  # Turn everything OFF
-                    set_tl(6, tl6Red, tl6Green, tl6Yellow, "green") # Green ON
-                    time.sleep(5)
-                    set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset") # Green OFF (all lights OFF)
+                    set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")  # clear before switching
+                    set_tl(6, tl6Red, tl6Green, tl6Yellow, "green")
+                    time.sleep(greenDuration)
+                    set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")
 
-                    update() 
+                    update()
 
                     if ss3Trigger:
-                        #overheight vehicle still detected by US5
+                        # vehicle still there after green then hand flash duty to 556
                         print("Overheight vehicle still detected by US5, TL6 flashing green!")
-                        
-                        # CRITICAL: Make sure red is OFF before starting flash
-                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")  # Explicitly turn ALL lights OFF
-                        
-                        #556 controls
-                        timerStarted = False  
+
+                        # make sure red is fully off before 556 takes over green
+                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")
+
+                        timerStarted = False
                         while ss3Trigger:
                             update()
-                            
-                            # Turn on 556 only once
+
+                            # only enable 556 once
                             if not timerStarted:
                                 board.digital_write(timer, 1)
                                 timerStarted = True
-                            
-                            time.sleep(0.01)
-                        
-                        
+
+                            time.sleep(flashLoopDelay)
+
+                        # vehicle cleared then stop 556 and go back to red
                         print("Overheight vehicle no longer detected by US5!")
-                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")  # All OFF
-                        board.digital_write(timer, 0) #turn off 556
-                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "red") # Red ON
+                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")
+                        board.digital_write(timer, 0)
+                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "red")
 
                     else:
+                        # vehicle cleared before green ran out then normal yellow then red
                         print("Vehicle cleared from US5!")
-                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "yellow") #yellow on
-                        time.sleep(3)
-                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset") #yellow off
-                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "red") #red on
+                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "yellow")
+                        time.sleep(yellowDuration)
+                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")
+                        set_tl(6, tl6Red, tl6Green, tl6Yellow, "red")
 
             lastState = ss3Trigger
-            time.sleep(0.05)
+            time.sleep(loopDelay)
 
     except KeyboardInterrupt:
-        print("\nshutting down...")
+        print("\nShutting down...")
         set_tl(6, tl6Red, tl6Green, tl6Yellow, "reset")
         board.shutdown()
-        print("\nShutdown Complete")
+        print("\nShutdown complete")
 
 
-#starting the program
 if __name__ == "__main__":
     main()

@@ -6,6 +6,7 @@ ser = 2
 srclk = 3
 rclk = 4
 
+global board
 board = pymata4.Pymata4() #circuit.Arduino()
 startTime = time.time()
     
@@ -14,6 +15,9 @@ integration = False
 pollingRate = 0.05
 sensorMountHeight = 4.5
 overheightLimit = 4.0
+
+global powerLoss
+powerLoss = False
 
 #no. of shift registers
 chain_number = 2
@@ -38,6 +42,8 @@ state = {
     
     #buzzer
     "pa1": {"sound": False},
+
+    
     
 
 }
