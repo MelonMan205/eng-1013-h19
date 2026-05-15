@@ -1,6 +1,6 @@
 import time 
 from pymata4 import pymata4
-import circuit as circuit
+
 
 ser = 2
 srclk = 3
@@ -20,7 +20,7 @@ global powerLoss
 powerLoss = False
 
 #no. of shift registers
-chain_number = 2
+chain_number = 4
 
 state = {
     #ultrasonic sensors
@@ -42,6 +42,9 @@ state = {
     
     #buzzer
     "pa1": {"sound": False},
+
+    # warning lights
+    "wl2": {"mode": "reset"}
 
     
     

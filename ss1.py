@@ -28,7 +28,7 @@ tl1Green = 4
 tl2Red = 5
 tl2Yellow = 6
 tl2Green = 7
-pa1Enable = 11
+
 
 testPin = 14
 
@@ -67,7 +67,7 @@ def init():
     Returns:
         None
     """
-    outputPins = [tl1Red, tl1Yellow, tl1Green, tl2Red, tl2Yellow, tl2Green, pa1Enable, testPin]
+    outputPins = [tl1Red, tl1Yellow, tl1Green, tl2Red, tl2Yellow, tl2Green, timerReset, testPin]
     for pin in outputPins:
         config.board.set_pin_mode_digital_output(pin)
 
@@ -316,7 +316,7 @@ def run_ss1():
             sequence_pa1(start=time.time())
 
         #test a pin to see if arduino still has power
-            config.board.digital_write(testPin, 1)
+        config.board.digital_write(testPin, 1)
         process_shift_register(config.state)
     #handle powerloss
     except RuntimeError:

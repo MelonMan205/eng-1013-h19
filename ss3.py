@@ -31,6 +31,31 @@ global sequenceTl6Trigger
 ss3Trigger = False
 overHeightLimit = get_over_height()
 
+def poll_us(pin, usNumber, overHeightLimit):
+    """
+    Poll  ultrasonic sensor numSamples times and average the results
+    Check if the averaged height exceeds overheightLimit and updates state
+
+    Takes:
+        pin (int): trigger pin for the sonar
+        usNumber (int): which sensor this is - used as the state dict key
+        overHeightLimit (int): the overheight detection limit
+
+    Returns:
+        tuple: (bool overheight detected, float height in metres, str timestamp)
+    """
+    distance = poll(pin, sonar=True)[0]
+    height = (sensorMountHeight*100 - distance)/100
+    result = height > overHeightLimit
+    if result:
+        state[f"us{usNumber}"]["detected"] = True 
+        state[f"us{usNumber}"]["timeOfLast"] = time.time()
+        
+    else:
+        state[f"us{usNumber}"]["detected"] = False
+
+    return result, height, time.strftime("%x")
+
 
 def update():
     """

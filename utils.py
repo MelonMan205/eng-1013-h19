@@ -103,35 +103,39 @@ def poll(pin, sonar=False):
             return board.digital_read(pin) if not sonar else board.sonar_read(pin)
 
 
-def poll_us(pin, usNumber):
+def poll_us(pin, usNumber, overHeightLimitOverride=None):
     """
-    Poll  ultrasonic sensor numSamples times and average the results
-    Check if the averaged height exceeds overheightLimit and updates state
-
-    Takes:
-        pin (int): trigger pin for the sonar
-        usNumber (int): which sensor this is - used as the state dict key
-
+    Polls an ultrasonic sensor numSamples times averages the results to
+    filter noise check if the averaged height exceeds the overheight limit 
+ 
+    Parameters:
+        pin (int): trigger pin for the sonar sensor
+        usNumber (int): which sensor this is (1-5), used as the state dict key
+        overHeightLimitOverride (float or None): optional height threshold in metres;
+            if None, falls back to config.overheightLimit
+ 
     Returns:
         tuple: (bool overheight detected, float height in metres, str timestamp)
     """
+    threshold = overHeightLimitOverride if overHeightLimitOverride is not None else overheightLimit
+ 
     # take multiple samples and average to filter out noise
     samples = []
     for i in range(numSamples):
         raw = poll(pin, sonar=True)[0]
         samples.append(raw)
         time.sleep(sampleInterval)
-
+ 
     avgRaw = sum(samples) / len(samples)
     height = (sensorMountHeight * 100 - avgRaw) / 100
-    result = height > overheightLimit
-
+    result = height > threshold
+ 
     if result:
         state[f"us{usNumber}"]["detected"] = True
         state[f"us{usNumber}"]["timeOfLast"] = time.time()
     else:
         state[f"us{usNumber}"]["detected"] = False
-
+ 
     return result, height, time.strftime("%X %x")
 
 
